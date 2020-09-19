@@ -16,7 +16,7 @@ import wave
 from asyncio.queues import Queue
 
 from DeepSpeech.native_client.python import Model
-
+import json
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import logging
 
@@ -40,11 +40,15 @@ def fail(message, code=1):
     log_error(message)
     sys.exit(code)
 
+def chunkChecker(segment, index):
+
+    print("------------>{}<------------\n\n\n\n\n\n\n\n\n".format(segment), file=sys.stderr, flush=True)
+    return index
 
 global output
 
 # most cpu's are quad cores nowadays, but powers of 2 are always nice
-NUM_THREADS = 2
+NUM_THREADS = 4
 
 
 class ChunkWorker(threading.Thread):
@@ -59,20 +63,22 @@ class ChunkWorker(threading.Thread):
             words = []
             word_times = []
 
-            segment = self.ReadQueue.get()
-            if segment == -1:
+            segment_info = self.ReadQueue.get()
+
+            if segment_info.get('index') == -1:
                 print("sentinel", file=sys.stderr, flush=True)
                 return
 
             word = ''
             cur_time = 0.0
             chunkstart = time.time()
-            audio = np.frombuffer(segment.bytes, dtype=np.int16)
+            audio = np.frombuffer(segment_info.get('chunk').bytes, dtype=np.int16)
 
-            print("Thread is begining to start processing a chunk", file=sys.stderr, flush=True)
+            # print("Thread is begining to start processing a chunk", file=sys.stderr, flush=True)
             output = self.ds.sttWithMetadata(audio, 1)  # Run Deepspeech
-            print("Thread has FINISHED processing a chunk. It took {} ".format(time.time() - chunkstart),
-                  file=sys.stderr, flush=True)
+            # print("Thread has FINISHED processing a chunk. It took {} ".format(time.time() - chunkstart),
+            #       file=sys.stderr, flush=True)
+
 
             for token in output.transcripts[0].tokens:
                 if word == '':
@@ -82,122 +88,84 @@ class ChunkWorker(threading.Thread):
                     words.append(word)
                     word = ''
 
-            print(words, file=sys.stderr)
-            print(word_times, file=sys.stderr)
+
             words.append(word)
             stamped_words = [{"word": w, "time": t} for w, t in zip(words, word_times)]
-            self.WriteQueue.put(stamped_words)  # send the chunk result back to the master
+            out = {'result': stamped_words, 'index': segment_info.get('index')}
+
+            self.WriteQueue.put(out)  # send the chunk result back to the master
 
 
-def transcribe_file(audio_path, tlog_path):
-    print(audio_path)
-    audio_file = wave.open(audio_path, 'rb')
-    loadtime = time.time()
-    ds = Model(os.getcwd() + "/deepspeech-0.7.4-models.pbmm")
-    print('Model Loaded into memory. Took {} seconds'.format(time.time() - loadtime), file=sys.stderr, flush=True)
-    # Point to a path containing the pre-trained models & resolve ~ if used
-    desired_sample_rate = ds.sampleRate()
-    file_rate = audio_file.getframerate()
-    channels = audio_file.getnchannels()
-    index_path = audio_path
-    # Enforce audio structure
-    if file_rate != desired_sample_rate:
-        print(
-            'Warning: original sample rate ({}) is different than {}hz. Resampling might produce erratic speech recognition.'.format(
-                file_rate, desired_sample_rate), file=sys.stderr, flush=True)
-        audio_path = convert_samplerate(audio_path, desired_sample_rate)
-    if channels > 1:
-        audio_path = squash_channels(index_path, audio_path)
+def transcribe_file(audio_path, ds):
 
     # break audio up into chunks to be processed
     print("Chunking file...", file=sys.stderr, flush=True)
     segments = wavTranscriber.vad_segment_generator(audio_path, 3)
     print("Beginning to process generated file chunks")
+
+
     inference_time = time.time()
+
+
     # make a set of queues for upstream and downstream communication
     WriteQueue = queue.Queue()
     ReadQueue = queue.Queue()
     workers = []
-    # gotta get some workers goin
+
     for i in range(NUM_THREADS):
         x = ChunkWorker(WriteQueue, ReadQueue, ds)
         x.start()
-        workers.append(
-            x)  # the queue is used for audio chunks, the other two can be appended to in a thread safe manner
+        workers.append(x)  # the queue is used for audio chunks, the other two can be appended to in a thread safe manner
 
     print("Workers started...", file=sys.stderr, flush=True)
 
     for i, segment in enumerate(segments):
         print("Writing segment num {}".format(i), file=sys.stderr, flush=True)
-        WriteQueue.put(segment)
+        WriteQueue.put({'chunk': segment, 'index': i})
 
     print("All Chunks sent...", file=sys.stderr, flush=True)
 
     for i in range(NUM_THREADS):
         print("stopping worker {}".format(i), file=sys.stderr, flush=True)
-        WriteQueue.put(-1)  # send a sentinel to all threads
+        WriteQueue.put({"index" : -1})  # send a sentinel to all threads
 
     for i in range(NUM_THREADS):
         workers[i].join()  # wait for all threads
         print(" worker {} has joined".format(i), file=sys.stderr, flush=True)
 
-    stamped_words = []
+    processed_chunks = []
 
     #apply an offset to every n+1 elements
 
     for ele in list(ReadQueue.queue):
         print(ele, file=sys.stderr, flush=True)
-        stamped_words.extend(ele)
+        processed_chunks.append(ele)
+
+    processed_chunks.sort(key=lambda p: p.get('index'))
+
+
 
     curtime = 0.0
     i = 0
-    for e in stamped_words:
+    new = []
+    while i < len(processed_chunks):
+        curitem = processed_chunks[i].get('result')
         if i == 0:
-            curtime = e["time"]
-        
-        if curtime > e["time"]:
-            curtime = curtime + e["time"]
-            e["time"] = curtime
-        else:
-            curtime = e["time"]
-        
+            curtime = curitem[len(curitem) - 1]['time']
+            i = i + 1
+            continue
+
+        j = 0
+        while j < len(curitem):
+            curword = curitem[j]
+            curword['time'] = curword['time'] + curtime
+            j = j + 1
+            new.append(curword)
+        curtime = new[len(new) - 1]['time']
         i = i + 1
 
-
-    print("{}".format(json.dumps(stamped_words)), file=sys.stderr, flush=True)
-    # timeSum = 0.0
-    # for i in individualTimes:
-    #     timeSum += i
-    # averageTime = timeSum / len(individualTimes)
-
     print("done with file; took{}".format(time.time() - inference_time))
-    # print("average chunk time is {}. Current run time is".format(averageTime, time.time() - inference_time))
-    # print("Returning transcription to caller.")
-    return json.dumps(stamped_words)
 
+    print("\n\n\n\n\n\n\n\n {} \n\n\n\n\n\n\n\n\n\n".format(new), file=sys.stderr, flush=True)
 
-# Our model likes mono audio
-def squash_channels(firstPath, audio_path):
-    ffmpeg_cmd = 'ffmpeg -y -i {} -ac 1 {}'.format(shlex.quote(audio_path), shlex.quote(firstPath + "mono.wav"))
-    try:
-        output = subprocess.check_output(shlex.split(ffmpeg_cmd), stderr=subprocess.PIPE)
-        print(ffmpeg_cmd)
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError('ffmpeg returned non-zero status: {}'.format(e.stderr, flush=True))
-    except OSError as e:
-        raise OSError(e.errno, 'ffmpeg not found'.format(e.strerror))
-    return shlex.quote(firstPath + "mono.wav")
-
-
-def convert_samplerate(audio_path, desired_sample_rate):
-    ffmpeg_cmd = 'ffmpeg -y -i {} -ar {} {}'.format(
-        shlex.quote(audio_path), desired_sample_rate, shlex.quote(audio_path + "16k.wav"))
-    try:
-        output = subprocess.check_output(shlex.split(ffmpeg_cmd), stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError('ffmpeg returned non-zero status: {}'.format(e.stderr, flush=True))
-    except OSError as e:
-        raise OSError(e.errno,
-                      'ffmpeg not found, use {}hz files or install it: {}'.format(desired_sample_rate, e.strerror))
-    return shlex.quote(audio_path + "16k.wav")
-
+    return json.dumps(new)

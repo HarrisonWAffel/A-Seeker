@@ -4,8 +4,8 @@ pip3 install deepspeech
 pip3 install deepspeech-tflite
 git submodule update --force --recursive --init --remote
 chmod 777 deepspeech/DeepSpeech
-cd deepspeech/DeepSpeech
+cd deepspeech
 wget -c -i ./modelUrls
 
 
-cd ../..
+cd ..
