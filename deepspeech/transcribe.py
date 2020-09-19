@@ -15,43 +15,21 @@ import subprocess
 import wave
 from asyncio.queues import Queue
 
+import wavSplit
 from DeepSpeech.native_client.python import Model
 import json
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import logging
-
 logging.getLogger('sox').setLevel(logging.ERROR)
-import numpy as np
-
-from DeepSpeech.training.deepspeech_training.util.config import initialize_globals
-
-import wavTranscriber
 import queue
-
-init = False
-
-
-def init():
-    initialize_globals()
-
-
-def fail(message, code=1):
-    from DeepSpeech.training.deepspeech_training.util.logging import log_error
-    log_error(message)
-    sys.exit(code)
-
-def chunkChecker(segment, index):
-
-    print("------------>{}<------------\n\n\n\n\n\n\n\n\n".format(segment), file=sys.stderr, flush=True)
-    return index
-
+import numpy as np
 global output
 
-# most cpu's are quad cores nowadays, but powers of 2 are always nice
 NUM_THREADS = 4
-
+CHUNK_SIZE = 60000
 
 class ChunkWorker(threading.Thread):
+
     def __init__(self, ReadQueue, WriteQueue, ds):
         threading.Thread.__init__(self)
         self.ds = ds
@@ -92,20 +70,18 @@ class ChunkWorker(threading.Thread):
             words.append(word)
             stamped_words = [{"word": w, "time": t} for w, t in zip(words, word_times)]
             out = {'result': stamped_words, 'index': segment_info.get('index')}
-
+            if len(stamped_words) == 0:
+                return
             self.WriteQueue.put(out)  # send the chunk result back to the master
 
 
 def transcribe_file(audio_path, ds):
 
-    # break audio up into chunks to be processed
-    print("Chunking file...", file=sys.stderr, flush=True)
-    segments = wavTranscriber.vad_segment_generator(audio_path, 3)
+    audio, sample_rate, audio_length = wavSplit.read_wave(audio_path)
+    segments = list(wavSplit.frame_generator(CHUNK_SIZE, audio, sample_rate))
+
     print("Beginning to process generated file chunks")
-
-
     inference_time = time.time()
-
 
     # make a set of queues for upstream and downstream communication
     WriteQueue = queue.Queue()
@@ -113,59 +89,71 @@ def transcribe_file(audio_path, ds):
     workers = []
 
     for i in range(NUM_THREADS):
-        x = ChunkWorker(WriteQueue, ReadQueue, ds)
+        x = ChunkWorker(WriteQueue, ReadQueue, ds) # all chunks get the same queues and inference model
         x.start()
-        workers.append(x)  # the queue is used for audio chunks, the other two can be appended to in a thread safe manner
+        workers.append(x)
+
 
     print("Workers started...", file=sys.stderr, flush=True)
-
     for i, segment in enumerate(segments):
         print("Writing segment num {}".format(i), file=sys.stderr, flush=True)
         WriteQueue.put({'chunk': segment, 'index': i})
 
-    print("All Chunks sent...", file=sys.stderr, flush=True)
 
+    print("All Chunks sent...", file=sys.stderr, flush=True)
     for i in range(NUM_THREADS):
         print("stopping worker {}".format(i), file=sys.stderr, flush=True)
-        WriteQueue.put({"index" : -1})  # send a sentinel to all threads
+        WriteQueue.put({"index" : -1})  # send a sentinel value to all threads
+
 
     for i in range(NUM_THREADS):
-        workers[i].join()  # wait for all threads
+        workers[i].join()  # wait for all threads to join
         print(" worker {} has joined".format(i), file=sys.stderr, flush=True)
 
+
+
     processed_chunks = []
-
-    #apply an offset to every n+1 elements
-
     for ele in list(ReadQueue.queue):
         print(ele, file=sys.stderr, flush=True)
         processed_chunks.append(ele)
-
+    # each thread will send both the inference result
+    # as well as the chunk id which is used to sort
+    # the ReadQueue, allowing for asynchronous processing
     processed_chunks.sort(key=lambda p: p.get('index'))
 
 
+    # because each chunk is processed discretely, each word will have a time
+    # value within the range of zero and CHUNK_SIZE in seconds represented by a float value.
+    # To accurately associate each word with its proper time within the media, and not within
+    # the range described above, we need to add an offset to all tokens in each segment
+    # - excluding the zeroth segment as it needs no adjustment.
 
-    curtime = 0.0
+    currentTime = 0.0 # the Nth time element of each adjusted chunk
     i = 0
-    new = []
-    while i < len(processed_chunks):
-        curitem = processed_chunks[i].get('result')
-        if i == 0:
-            curtime = curitem[len(curitem) - 1]['time']
+    adjusted_tokens = []
+    while i < len(processed_chunks) != 1: # no need to adjust the first chunk, the media was in the bounds of 0 and CHUNK_SIZE
+        current_item = processed_chunks[i].get('result')
+        if len(current_item) != 0: # if we get a chunk that has no speech within it, such as instrumental music, ignore it
+            if i == 0:
+                currentTime = current_item[len(current_item) - 1]['time'] # This is the end of the first chunk - used
+                i = i + 1
+                continue
+
+            j = 0
+            while j < len(current_item):
+                current_word = current_item[j]
+                current_word['time'] = current_word['time'] + currentTime
+                j = j + 1
+                adjusted_tokens.append(current_word)
+
+            # take the last element of the current chunk to apply as an offset for the next chunk
+            currentTime = adjusted_tokens[len(adjusted_tokens) - 1]['time']
             i = i + 1
-            continue
 
-        j = 0
-        while j < len(curitem):
-            curword = curitem[j]
-            curword['time'] = curword['time'] + curtime
-            j = j + 1
-            new.append(curword)
-        curtime = new[len(new) - 1]['time']
-        i = i + 1
+    print("done with file; took{}".format(time.time() - inference_time), file=sys.stderr, flush=True)
 
-    print("done with file; took{}".format(time.time() - inference_time))
-
-    print("\n\n\n\n\n\n\n\n {} \n\n\n\n\n\n\n\n\n\n".format(new), file=sys.stderr, flush=True)
-
-    return json.dumps(new)
+    if len(processed_chunks) == 1:
+        # only one chunk was processed and as such adjusted_tokens is empty
+        return json.dumps(processed_chunks[0].get('result'))
+    else:
+        return json.dumps(adjusted_tokens)

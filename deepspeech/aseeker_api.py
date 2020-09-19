@@ -4,7 +4,6 @@ import sys
 # import tensorflow as tf
 import transcribe
 import aseeker_controller
-import transcription_db
 from flask import Flask, request, send_from_directory
 
 from DeepSpeech.training.deepspeech_training.util.config import initialize_globals
@@ -46,13 +45,6 @@ def get_file(filename):
     except FileNotFoundError:
         os.abort(404)
 
-@app.route('/get-transcriptions', methods=['GET'])
-def get_transcriptions():
-    db = transcription_db.Database()
-    results = db.get_transcriptions()
-
-    return json.dumps(results)
-
 
 if __name__ == '__main__':
     # create_flags()
@@ -85,24 +77,3 @@ if __name__ == '__main__':
 
     app.run(host='0.0.0.0', debug=False, threaded=True)
 
-
-# # check if the post request has the file part
-#     if '.wav' not in request.files:
-#         resp = jsonify({'message': 'No wav file part in the request'})
-#         resp.status_code = 400
-#         return resp
-#     file = request.files['file']
-#     if file.filename == '':
-#         resp = jsonify({'message': 'No file selected for uploading'})
-#         resp.status_code = 400
-#         return resp
-#     if file and allowed_file(file.filename):
-#         filename = secure_filename(file.filename)
-#         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-#         resp = jsonify({'message': 'File successfully uploaded'})
-#         resp.status_code = 201
-#         return resp
-#     else:
-#         resp = jsonify({'message': 'Allowed file types are txt, pdf, png, jpg, jpeg, gif'})
-#         resp.status_code = 400
-#         return resp
