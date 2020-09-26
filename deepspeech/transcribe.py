@@ -26,7 +26,7 @@ import numpy as np
 global output
 
 NUM_THREADS = 4
-CHUNK_SIZE = 60000
+CHUNK_SIZE = 20000
 
 class ChunkWorker(threading.Thread):
 

@@ -1,0 +1,14 @@
+.userinfo {
+    text-align: center;
+    height: 40%; /* Full-height: remove this if you want "auto" height */
+    width: 15vw; /* Set the width of the sidebar */
+    position: fixed; /* Fixed Sidebar (stay in place on scroll) */
+    z-index: 1; /* Stay on top */
+    top: 50%;
+    left: 0;
+    background-color: #e8ebed;
+    overflow-x: hidden; /* Disable horizontal scroll */
+    border-top: 1px double rgba(138, 139, 138, 0.45);
+    border-bottom: 1px double rgba(138, 139, 138, 0.45);
+    border-radius: 10px;
+}

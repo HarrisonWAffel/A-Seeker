@@ -1,27 +1,48 @@
 .bodyContent {
     /* make sure the contents are not under the sidebar */
-    margin-left: 16vw; /* Same as the width of the sidebar plus one for padding */
-    position: absolute;
+    padding-left: 15vw; /* Same as the width of the sidebar plus one for padding */
     height: 100%;
-    width: 75%;
+    width: 100%;
+    text-align: center;
+    font-size: 20px;
+    wrap-option: content;
 }
 
+
 .quickStart {
+    border-bottom: 1px double rgba(221, 222, 221, 0.61);
+    display: inline-block;
+}
+
+.quickStartLeft {
+    padding-top: 2vh;
+    width: 50%;
+    float:left;
+    border-right: 1px double rgba(221, 222, 221, 0.65);
+
     text-align: center;
+}
+
+.quickStartRight {
+    width: 50%;
+    float: right;
+    text-align: center;
+    padding-top: 2vh;
 }
 
 .bodyContent section {
     border: thin black solid;
 }
 
-.bodyContent h3 {
-    font-size: 25px;
-    padding-right: 20vw;
-    padding-top: 5px;
-}
-
 .padding {
     justify-items: right;
     margin: 15px;
     font-size: calc(8px + 1vmin);
+}
+
+
+.summary {
+    padding-top: 5vh;
+    padding-left: 5vw;
+    padding-right: 5vw;
 }

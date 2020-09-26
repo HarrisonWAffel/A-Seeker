@@ -1,6 +1,5 @@
 import React, {Component} from 'react';
 import './css/bootstrap.css'
-import './loginButton'
 import './css/bodyContent.css'
 import Cookies from 'universal-cookie'
 import './css/transcriptionView.css'
@@ -42,9 +41,9 @@ class TranscriptionView extends React.Component {
                 });
                 console.log(response)
             }).catch(err => {
-            alert("Please Login To submit media files for transcriptions");
-            console.log(err)
-
+            if (cookies.get("email") === undefined) {
+                alert("Please Login To submit media files for transcriptions");
+            }
         });
         var video = document.getElementById("video");
 

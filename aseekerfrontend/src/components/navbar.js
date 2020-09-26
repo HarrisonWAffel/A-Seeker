@@ -9,18 +9,29 @@ class Navbar extends Component {
         cookies.remove("email");
     };
 
-    render() {
-        return (
-            <header className="App-header">
-                    <div>
-                        <Link className="padding" to="/login">Log In</Link>
-                        <Link className="padding" to = "/register">Sign Up</Link>
-                        <a  className="padding" href="/" onClick={this.onClick}>Log Out</a>
-                    </div>
-            </header>
 
-        );
+    isLoggedin() {
+        if (cookies.get("email") === undefined) {
+            return (<div>
+                        <Link className="padding" to="/login">Log In</Link>
+                        <Link className="padding" to="/register">Sign Up</Link>
+                    </div>);
+        }else{
+            return <a className="padding" href="/" onClick={this.onClick}>Log Out</a>
+        }
     }
-}
+
+     render() {
+         return (
+             <header className="App-header">
+                 <div>
+                     {this.isLoggedin()}
+                 </div>
+             </header>
+
+         );
+     }
+  }
+
 
 export default Navbar;

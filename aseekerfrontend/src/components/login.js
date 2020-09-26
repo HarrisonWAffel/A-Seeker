@@ -1,7 +1,7 @@
 import React, {Component} from 'react';
 import './css/bodyContent.css'
 import './css/bootstrap.css';
-import './loginButton'
+
 import Cookies from 'universal-cookie'
 const cookies = new Cookies();
 

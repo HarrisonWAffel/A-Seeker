@@ -4,10 +4,11 @@ import css from "./css/transcriptionList.css"
 import {ListGroup, ListGroupItem} from "react-bootstrap";
 import {withRouter} from 'react-router-dom';
 import  Cookies  from 'universal-cookie';
+import ModalContext from "react-bootstrap/cjs/ModalContext";
+import Modal from './modal'
 import  transcriptionUpload from "./css/transcriptionUploadCSS.css"
 const cookies = new Cookies();
-
-
+ 
 class TranscriptionList extends React.Component {
 
     constructor(props) {
@@ -33,8 +34,6 @@ class TranscriptionList extends React.Component {
             }).catch (err => {
                 if(cookies.get("email") === ""){
                     alert("Please Register to submit media for transcriptions");
-                }else{
-                    alert("Upload your first media file to see the processed result on this screen");
                 }
                 console.log(err)
             });
@@ -57,11 +56,12 @@ class TranscriptionList extends React.Component {
                             className="form-control transcriptionUploadTitleInput"
                             id="exampleFormControlTextarea1"
                             rows="1"
-                            placeholder={"Enter Transcription Title Here (must include file extension)"}
+                            placeholder={"Enter Transcription Title Here "}
                             contentEditable={"true"}
                         />
                     <br/>
                     <TranscriptionUploadButton/>
+
                 </div>
             </div>
                <br/><br/>

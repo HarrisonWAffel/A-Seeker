@@ -2,8 +2,11 @@
     /* make sure the contents are not under the sidebar */
     margin-top: 1vh;
     margin-left: 30vw; /* Same as the width of the sidebar plus one for padding */
+    border-radius: 25px;
+    padding: 10px 25px;
     position: center;
     width: 50%;
+    background-color: #efefef;
     text-align: center;
     align-content: center;
 }
@@ -21,4 +24,11 @@
     width: 100%;
     border: dashed 1px black;
     background-color: lightblue;
+}
+
+.transcriptionUpload h3 {
+    position: relative;
+    padding-top: 15px;
+    margin: 0px;
+    align-content: center;
 }
