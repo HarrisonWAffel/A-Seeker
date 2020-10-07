@@ -15,7 +15,8 @@ class TranscriptionList extends React.Component {
         super(props);
         this.goToTranscription = this.goToTranscription.bind(this);
         this.state = {
-            transcriptions: []
+            transcriptions: [],
+            threadCount: 1
         }
     }
 
@@ -46,22 +47,39 @@ class TranscriptionList extends React.Component {
             state: {title : title}
         })
     }
-
+    changeThreadNum(e){
+        this.setState({threadCount: e.value})
+    }
     render() {
         return (
             <div className={css.transcriptionList}>
                 <div className="transcriptionUpload">
                     <div>
                         <textarea
-                            className="form-control transcriptionUploadTitleInput"
+                            className="form-control transcriptionUploadTitleInput textarea-left"
                             id="exampleFormControlTextarea1"
                             rows="1"
                             placeholder={"Enter Transcription Title Here "}
                             contentEditable={"true"}
                         />
-                    <br/>
-                    <TranscriptionUploadButton/>
 
+
+                        <div className="textarea-right form-control" >
+                            <label htmlFor="thread"> Select Thread Num </label>
+
+                            <select id="thread" onChange={this.changeThreadNum}>
+                                <optgroup label="Thread Count">
+                                    <option value="1">One</option>
+                                    <option value="2">Two</option>
+                                    <option value="4">Four</option>
+                                    <option value="8">Eight</option>
+                                    <option value="16">Sixteen</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                    <br/><br/>
+                    <TranscriptionUploadButton/>
                 </div>
             </div>
                <br/><br/>
@@ -71,7 +89,6 @@ class TranscriptionList extends React.Component {
                                 <ListGroup.Item action onClick={() => this.goToTranscription(transcription.title)}>
                                     <div>
                                         <h4>{transcription.title}</h4>
-                                        {/*<h6>{transcription.preview}</h6>*/}
                                         <br/>
                                         <h6>{transcription.contentFilePath}</h6>
                                     </div>

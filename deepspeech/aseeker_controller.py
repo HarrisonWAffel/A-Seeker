@@ -156,8 +156,8 @@ def media_processor(audio_path):
 
 
 
-def transcribe_input(audio_path):
+def transcribe_input(audio_path, threadcount):
     file_path = convertToWav(audio_path) # we can only process wav files
     # we need to convert the other codecs and sample rates that aren't wav 16khz
     filepath, ds = media_processor(file_path)
-    return transcribe_file(filepath, ds)
+    return transcribe_file(filepath, ds, threadcount)

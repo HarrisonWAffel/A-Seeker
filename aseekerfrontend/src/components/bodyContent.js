@@ -16,7 +16,11 @@ function bodyContent() {
             <div className="quickStartRight">
                 <h2>Let's Get Started: </h2>
                 <p>
-                    To get started with A-Seeker, first you should go to the <a href="/signup">Sign Up</a> page to register an account. Afterwards you can go to the <a href="/transcriptions">Transcriptions page</a>, enter an upload title into the text box and select a file, the rest will be taken care of for you!
+                    To get started with A-Seeker, first you should go to the
+                    <a href="/signup"> Sign Up</a> page to register an account.
+                    Afterwards you can go to the <a href="/transcriptions">Transcriptions page</a>,
+                    enter an upload title into the text box, and select a file, the rest will be taken
+                    care of for you!
                 </p>
             </div>
         </div>

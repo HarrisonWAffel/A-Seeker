@@ -29,6 +29,26 @@
 .transcriptionUpload h3 {
     position: relative;
     padding-top: 15px;
-    margin: 0px;
+
     align-content: center;
 }
+
+
+.textarea-left {
+    width: 50%;
+    float: left;
+    display: inline-block;
+}
+
+.textarea-right {
+    margin-top: 5px;
+    width: 50%;
+    float: left;
+    display: inline-block;
+}
+
+.textarea-right label {
+    padding-right: 1vw;
+}
+
+

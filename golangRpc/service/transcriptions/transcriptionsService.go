@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/log"
+	"io/ioutil"
+	"net/http"
 	"strings"
 )
 
@@ -59,6 +61,27 @@ func GetAll() {
 		r.Scan(&trns.Email, &trns.Preview, &trns.FullTranscription, &trns.ContentFilePath, &trns.Title)
 		transcriptions = append(transcriptions, trns)
 	}
+
+}
+
+func GetPendingTranscriptions() (string, error) {
+	req, err := http.NewRequest(http.MethodGet, "http://deepspeech:5000/get/pending", nil)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	all, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+
+	return string(all), nil
 
 }
 
@@ -170,6 +193,20 @@ func CheckForUser(email string) bool {
 		userfound = true
 	}
 	return userfound
+}
+
+func NumberOfTranscriptions(email string) int {
+	sqlq := "select title from transcription where email = '" + email + "';"
+	r, e := Database.Query(sqlq)
+	if e != nil {
+		log.Error(e)
+		return 0
+	}
+	num := 0
+	for r.Next() {
+		num++
+	}
+	return num
 }
 
 //DeleteTranscription will delete a transcription which matches the given transcriptionTitle.

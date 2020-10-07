@@ -40,40 +40,52 @@ func UploadMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	threadCount := r.URL.Query().Get("threads")
+	if email == "" {
+		w.WriteHeader(http.StatusNotAcceptable)
+		log.Error("Upload media function received a request which has am empty email query value")
+		return
+	}
+
+	w.Write([]byte("d"))
 	//send the file
-	log.Infof("Uploading Media File: %s for %s", name, r.URL.Query().Get("email"))
-	response := deepSpeech.UploadMediaAsFile(w, file, name)
-	r.Body.Close() //close the request body to save resources
-	file.Close()   //close the media file
+	go func() {
+		log.Infof("Uploading Media File: %s for %s", name, r.URL.Query().Get("email"))
+		response := deepSpeech.UploadMediaAsFile(w, file, name, threadCount)
+		r.Header.Set("Connection", "close")
+		r.Body.Close() //close the request body to save resources
 
-	//parse the processed transcription
-	var transcriptionResponse []domain.TranscriptionToken
+		file.Close() //close the media file
 
-	err = json.NewDecoder(response.Body).Decode(&transcriptionResponse)
-	if err != nil {
-		log.Info(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	//gather all tokens returned from processing
-	var FullTranscriptions domain.TranscriptionTokens
+		//parse the processed transcription
+		var transcriptionResponse []domain.TranscriptionToken
 
-	for _, e := range transcriptionResponse {
-		token := domain.TranscriptionToken{
-			Word: e.Word,
-			Time: e.Time,
+		err = json.NewDecoder(response.Body).Decode(&transcriptionResponse)
+		if err != nil {
+			log.Info(err)
+
+			return
 		}
-		FullTranscriptions = append(FullTranscriptions, token)
-	}
+		//gather all tokens returned from processing
+		var FullTranscriptions domain.TranscriptionTokens
 
-	transcription.FullTranscription = FullTranscriptions
-	err = transcriptions.InsertTranscription(transcription)
-	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusCreated)
+		for _, e := range transcriptionResponse {
+			token := domain.TranscriptionToken{
+				Word: e.Word,
+				Time: e.Time,
+			}
+			FullTranscriptions = append(FullTranscriptions, token)
+		}
+
+		transcription.FullTranscription = FullTranscriptions
+		err = transcriptions.InsertTranscription(transcription)
+		if err != nil {
+			log.Error(err)
+
+			return
+		}
+	}()
+	return
 }
 
 //todo;

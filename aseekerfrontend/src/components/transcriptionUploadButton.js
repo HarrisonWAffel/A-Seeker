@@ -50,38 +50,31 @@ class TranscriptionUploadButton extends React.Component {
             <div>
 
                  <Dropzone
-                    onDrop={() => {
-                        //get the title that the user input
-                        var email = cookies.get("email");
-                        if (email === undefined) {
-                            alert("Please login to upload a transcription");
-                            return
-                        }
-                        return false
-                         }}
                         onDropAccepted={acceptedFiles => {
                         //do upload post
                         var uploadBox = document.getElementById("exampleFormControlTextarea1");
                         const formData = new FormData();
                         formData.append('file', acceptedFiles[0]); //only one file at a time
+
+                        var threadCountBox = document.getElementById("thread");
+
                         if(uploadBox.valueOf() !== '' && uploadBox.value !== '') {
 
                             this.setMessage("Starting Upload.");
                             this.setDetail("Please do not leave this screen until file upload is complete");
-                            this.flip()
-                            fetch("http://localhost:1177/deepSpeech/media/upload?email='"+cookies.get("email")+"'&filename='"+uploadBox.value+"'", {
+                            this.flip();
+                            fetch("http://localhost:1177/deepSpeech/media/upload?email='"+cookies.get("email")+"'&filename='"+uploadBox.value+"&threads='"+threadCountBox.value+"'", {
                                 method: 'POST',
                                 body: formData
                             })
-                                .then(response => response.text())
-                                .then(data => {
-                                    this.setMessage("Upload Accepted!")
-                                })
-                                .catch(error => {
+                                .then(response => {
+                                    this.setMessage("Upload Accepted!");
+                                    this.setDetail("Your file has begun processing, it will appear below when finished. Feel free to leave this page. ");
+                                    response.text()
+                                }).catch(error => {
                                     this.setMessage("Error Uploading File, Please Try Again (Sorry!)");
                                     this.setDetail("");
                                 })
-
                         }else{
                             this.setMessage("Upload Rejected");
                             this.setDetail("Please enter a title");
@@ -107,5 +100,4 @@ class TranscriptionUploadButton extends React.Component {
         );
     }
 }
-
 export default TranscriptionUploadButton;

@@ -2,6 +2,7 @@ version: '3.7'
 services:
  # frontend:
  #   container_name: frontend
+ #   image: harrisonwaffel/aseekerfrontend
  #   build:
  #     context: ./aseekerfrontend
  #     dockerfile: Dockerfile
@@ -27,6 +28,7 @@ services:
 
  middware:
    container_name: golang-RPC-middleware
+   image: "harrisonwaffel/aseekermiddleware"
    build:
      context: ./golangRpc
      dockerfile: Dockerfile
@@ -42,6 +44,7 @@ services:
    #     reservations:
    #       cpus: '4.5'
    #       memory: 220M
+   image: harrisonwaffel/aseekerdeepspeech
    build:
       context: ./deepspeech
       dockerfile: Dockerfile

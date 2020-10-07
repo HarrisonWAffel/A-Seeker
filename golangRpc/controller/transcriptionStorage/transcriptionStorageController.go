@@ -86,6 +86,51 @@ func GetTranscription(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func GetUserTranscriptionCount(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	email := r.URL.Query()["email"][0]
+	if email == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Error("Empty email was passed to get transcription.")
+	}
+
+	if transcriptions.CheckForUser(email) {
+		type Resp struct {
+			Num int `json:"num"`
+		}
+		num := transcriptions.NumberOfTranscriptions(email)
+		x := Resp{num}
+		j, e := json.Marshal(x)
+		if e != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Write(j)
+	}
+	w.WriteHeader(http.StatusUnauthorized)
+}
+
+
+func GetPendingTranscriptions(w http.ResponseWriter, r *http.Request){
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	pending, err := transcriptions.GetPendingTranscriptions()
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Write([]byte(pending))
+}
+
+
 //DeleteTranscription transcription storage controller - Currently unused, as no UI is implemented to call this endpoint.
 func DeleteTranscription(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {

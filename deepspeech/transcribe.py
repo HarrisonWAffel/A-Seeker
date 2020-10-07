@@ -25,8 +25,7 @@ import queue
 import numpy as np
 global output
 
-NUM_THREADS = 4
-CHUNK_SIZE = 20000
+CHUNK_SIZE = 60000
 
 class ChunkWorker(threading.Thread):
 
@@ -44,15 +43,14 @@ class ChunkWorker(threading.Thread):
             segment_info = self.ReadQueue.get()
 
             if segment_info.get('index') == -1:
-                print("sentinel", file=sys.stderr, flush=True)
+                print("", file=sys.stderr, flush=True)
                 return
 
             word = ''
             cur_time = 0.0
-            chunkstart = time.time()
+            # chunkstart = time.time()
             audio = np.frombuffer(segment_info.get('chunk').bytes, dtype=np.int16)
 
-            # print("Thread is begining to start processing a chunk", file=sys.stderr, flush=True)
             output = self.ds.sttWithMetadata(audio, 1)  # Run Deepspeech
             # print("Thread has FINISHED processing a chunk. It took {} ".format(time.time() - chunkstart),
             #       file=sys.stderr, flush=True)
@@ -72,10 +70,11 @@ class ChunkWorker(threading.Thread):
             out = {'result': stamped_words, 'index': segment_info.get('index')}
             if len(stamped_words) == 0:
                 return
+
             self.WriteQueue.put(out)  # send the chunk result back to the master
 
 
-def transcribe_file(audio_path, ds):
+def transcribe_file(audio_path, ds, threadcount):
 
     audio, sample_rate, audio_length = wavSplit.read_wave(audio_path)
     segments = list(wavSplit.frame_generator(CHUNK_SIZE, audio, sample_rate))
@@ -88,10 +87,23 @@ def transcribe_file(audio_path, ds):
     ReadQueue = queue.Queue()
     workers = []
 
-    for i in range(NUM_THREADS):
+    threadcount = int(threadcount)
+
+    for i in range(threadcount):
         x = ChunkWorker(WriteQueue, ReadQueue, ds) # all chunks get the same queues and inference model
         x.start()
         workers.append(x)
+
+
+    if len(segments) <= 1:
+        print("SINGLE SEGMENT LENGTH IDENTIFIED", file=sys.stderr, flush=True)
+        # this can occur when the chunk size is larger than the audio file, resulting in no chunking
+        # we need to do the transcription manually
+        if len(segments) == 0:
+            audio_file = wave.open(audio_path, 'rb')
+            output = ds.sttWithMetadata(audio_file.bytes, 1)  # Run Deepspeech
+            return json.dumps(output)
+
 
 
     print("Workers started...", file=sys.stderr, flush=True)
@@ -101,12 +113,13 @@ def transcribe_file(audio_path, ds):
 
 
     print("All Chunks sent...", file=sys.stderr, flush=True)
-    for i in range(NUM_THREADS):
+    for i in range(threadcount):
         print("stopping worker {}".format(i), file=sys.stderr, flush=True)
         WriteQueue.put({"index" : -1})  # send a sentinel value to all threads
 
 
-    for i in range(NUM_THREADS):
+
+    for i in range(threadcount):
         workers[i].join()  # wait for all threads to join
         print(" worker {} has joined".format(i), file=sys.stderr, flush=True)
 
@@ -116,6 +129,8 @@ def transcribe_file(audio_path, ds):
     for ele in list(ReadQueue.queue):
         print(ele, file=sys.stderr, flush=True)
         processed_chunks.append(ele)
+
+
     # each thread will send both the inference result
     # as well as the chunk id which is used to sort
     # the ReadQueue, allowing for asynchronous processing
@@ -128,32 +143,30 @@ def transcribe_file(audio_path, ds):
     # the range described above, we need to add an offset to all tokens in each segment
     # - excluding the zeroth segment as it needs no adjustment.
 
-    currentTime = 0.0 # the Nth time element of each adjusted chunk
+    currentTime = 0.0
     i = 0
     adjusted_tokens = []
-    while i < len(processed_chunks) != 1: # no need to adjust the first chunk, the media was in the bounds of 0 and CHUNK_SIZE
-        current_item = processed_chunks[i].get('result')
-        if len(current_item) != 0: # if we get a chunk that has no speech within it, such as instrumental music, ignore it
-            if i == 0:
-                currentTime = current_item[len(current_item) - 1]['time'] # This is the end of the first chunk - used
+    offset = CHUNK_SIZE/1000
+    current_offset = 0
+    if len(processed_chunks) > 1:
+        while i < len(processed_chunks):
+            current_item = processed_chunks[i].get('result')
+            if len(current_item) != 0: # if we get a chunk that has no speech within it, such as instrumental music, ignore it
+                j = 0
+                while j < len(current_item):
+                    current_word = current_item[j]
+                    current_word['time'] = current_word['time'] + current_offset
+                    j = j + 1
+                    adjusted_tokens.append(current_word)
+
                 i = i + 1
-                continue
+            current_offset = current_offset + offset
 
-            j = 0
-            while j < len(current_item):
-                current_word = current_item[j]
-                current_word['time'] = current_word['time'] + currentTime
-                j = j + 1
-                adjusted_tokens.append(current_word)
+    else:
+        print("done with file; took{}".format(time.time() - inference_time), file=sys.stderr, flush=True)
+        return json.dumps(processed_chunks[0].get('result'))
 
-            # take the last element of the current chunk to apply as an offset for the next chunk
-            currentTime = adjusted_tokens[len(adjusted_tokens) - 1]['time']
-            i = i + 1
 
     print("done with file; took{}".format(time.time() - inference_time), file=sys.stderr, flush=True)
 
-    if len(processed_chunks) == 1:
-        # only one chunk was processed and as such adjusted_tokens is empty
-        return json.dumps(processed_chunks[0].get('result'))
-    else:
-        return json.dumps(adjusted_tokens)
+    return json.dumps(adjusted_tokens)

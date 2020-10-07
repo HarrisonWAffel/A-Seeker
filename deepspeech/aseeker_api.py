@@ -18,14 +18,15 @@ ALLOWED_EXTENSIONS = {'wav', 'mp3', 'mp4'}
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = AUDIO_FOLDER
 
+pending_transcripts = []
 
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-@app.route('/upload/<filename>', methods=['POST'])
-def upload_file(filename):
+@app.route('/upload/<filename>/<threads>', methods=['POST'])
+def upload_file(filename, threads):
 
     if "/" in filename:
         # Return 400 BAD REQUEST
@@ -34,9 +35,16 @@ def upload_file(filename):
     with open(os.path.join(AUDIO_FOLDER, filename), "wb") as fp:
         fp.write(request.data)
 
-    transcription = aseeker_controller.transcribe_input(os.path.join(AUDIO_FOLDER, filename))
+    pending_transcripts.append(filename)
+    transcription = aseeker_controller.transcribe_input(os.path.join(AUDIO_FOLDER, filename), threads)
+    pending_transcripts.remove(filename)
 
     return transcription, 201
+
+@app.route('/get/pending', methods=['GET'])
+def get_pending():
+    return '\n'.join(map(str, pending_transcripts))
+
 
 @app.route('/get/<filename>', methods=['GET'])
 def get_file(filename):

@@ -1,10 +1,13 @@
 package deepSpeech
 
 import (
+	"fmt"
 	"github.com/prometheus/common/log"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 //GetMedia will call the DeepSpeech service API to retrieve a media file, specified by filename.
@@ -29,12 +32,21 @@ func GetMedia(w http.ResponseWriter, fileName string) []byte {
 
 //UploadMediaAsFile will accept a multipart file, and a file name. It will then POST to the
 //DeepSpeech API, which will start the ASR processing.
-func UploadMediaAsFile(w http.ResponseWriter, file multipart.File, fileName string) *http.Response {
+func UploadMediaAsFile(w http.ResponseWriter, file multipart.File, fileName string, threadCount string) *http.Response {
 	log.Info("Sending an upload")
-	req, err := http.NewRequest(http.MethodPost, "http://deepspeech:5000/upload/"+fileName, file)
+	threadNum, err := strconv.Atoi(strings.Replace(threadCount, "'", "", -1))
 	if NetworkErr(w, err) {
 		return &http.Response{}
 	}
+
+
+	log.Info(fmt.Sprintf("http://deepspeech:5000/upload/%s/%d",fileName, threadNum))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://deepspeech:5000/upload/%s/%d",fileName, threadNum), file)
+	if NetworkErr(w, err) {
+		return &http.Response{}
+	}
+
+
 	resp, err := http.DefaultClient.Do(req)
 	if NetworkErr(w, err) {
 		return &http.Response{}

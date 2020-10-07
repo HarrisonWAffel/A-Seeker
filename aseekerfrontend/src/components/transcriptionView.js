@@ -8,19 +8,21 @@ import {Button, ButtonGroup, ToggleButton} from "react-bootstrap";
 
 const cookies = new Cookies();
 
-
+var id
 
 class TranscriptionView extends React.Component {
+
     constructor(props) {
         super(props);
         this.state = {
             title: this.props.location.state.title,
             tokens: [],
             filter_tokens: [],
-            search: null
+            search: null,
+            body: []
         };
-
         this.extract_words = this.extract_words.bind(this);
+        id =   setInterval(() => {this.getBody()}, 750);
     }
 
 
@@ -54,6 +56,10 @@ class TranscriptionView extends React.Component {
             });
     }
 
+    componentWillUnmount() {
+        clearInterval(id)
+    }
+
     extract_words(api_response) {
         const words = []
         for(var i=0; i<api_response.length; i++){
@@ -70,16 +76,10 @@ class TranscriptionView extends React.Component {
         return times
     }
 
-    handleChange = e => {
-        this.setState({
-            filter_tokens: this.state.tokens
-        });
-    };
-
     searchList=(event)=>{
         let keyword = event.target.value;
         this.setState({search:keyword})
-    }
+    };
 
 
     enableEditing(t_title, token_list) {
@@ -95,16 +95,32 @@ class TranscriptionView extends React.Component {
 
 
     getBody(){
-        return this.state.tokens.map((transcription) =>
-            <p onClick={function(){
-                var video = document.getElementById("video");
-                //manipulate the media player to the time
-                video.currentTime = transcription.time;
-            }}>{transcription.word}</p>
-        );
-    }
-    getResults() {
+        var video = document.getElementById("video");
+        var tick = false
+        var e = this.state.tokens.map((transcription) => {
+                if ((transcription.time).toFixed() === (video.currentTime).toFixed()) {
+                    return (
+                        <b>
+                            <p onClick={function () {
+                                //manipulate the media player to the time
+                                video.currentTime = transcription.time;
+                            }}>{transcription.word}</p>
+                        </b>
+                    );
+                } else {
+                    return (<p onClick={function () {
+                        //manipulate the media player to the time
+                        video.currentTime = transcription.time;
 
+
+                    }}>{transcription.word}</p>);
+                }
+            }
+        );
+        this.setState({body: e})
+    }
+
+    getResults() {
         var found = [];
         let k = 0;
         for (var i = 0; i < this.state.tokens.length; i++) {
@@ -116,26 +132,26 @@ class TranscriptionView extends React.Component {
                         // //get the words of surrounding tokens to provide a textual context to the search result
 
                         // //get the 5 words prior and after the found search result
-                        var firstFiveWords = "";
-                        for(let j = i-5; j < i; j++){
-                            if(this.state.tokens[i] !== undefined) {
-                                firstFiveWords += this.state.tokens[j].word + " "
+                        var firstTenWords = "";
+                        for(let j = i-10; j < i; j++){
+                            if(this.state.tokens[i] !== undefined && this.state.tokens[j] !== undefined) {
+                                firstTenWords += this.state.tokens[j].word + " "
                             }
                         }
 
-                        var nextFiveWords = "";
+                        var nextTenWords = "";
                         if( i < this.state.tokens.length - 1){
-                            for(let j = i; j < i+5; j++){
+                            for(let j = i; j < i+10; j++){
                                 // console.log(j)
-                                if(this.state.tokens[j] !== undefined) {
+                                if(this.state.tokens[i] !== undefined && this.state.tokens[j] !== undefined) {
                                     // console.log(this.state.tokens[j].word);
-                                    nextFiveWords += this.state.tokens[j].word + " ";
+                                    nextTenWords += this.state.tokens[j].word + " ";
                                 }
                             }
                         }
 
 
-                        let fin = firstFiveWords.concat(nextFiveWords);
+                        let fin = firstTenWords.concat(nextTenWords);
                         found[k] = {
                           word: fin,
                           time: this.state.tokens[i].time
@@ -166,7 +182,7 @@ class TranscriptionView extends React.Component {
                         <li onClick={()=>{
                             var video = document.getElementById("video");
                             //manipulate the media player to the time
-                            video.currentTime = curtime-0.75; //take 750ms off so that we can actually hear the search result
+                            video.currentTime = curtime; //take 750ms off so that we can actually hear the search result
                         }}>
                             <p>{found[i].word}</p>
                             <p>({found[i].time})</p>
@@ -177,29 +193,64 @@ class TranscriptionView extends React.Component {
         return elements;
     }
 
-    render(){
 
+    deleteTranscription(){
+
+
+    }
+
+    render(){
         return (
             <div className="transcriptionView">
-                <h4> {this.state.title} </h4>
-                <Button variant="primary" size="sm" onClick={() =>
-                    this.enableEditing(this.state.title, this.state.tokens)}
-                >Edit</Button>
+                <div className="buttons">
+                    <h4 className="title"> {this.state.title} </h4>
+                    <br/>
+                    <Button variant="primary" size="sm" onClick={() =>
+                        this.enableEditing(this.state.title, this.state.tokens)}
+                    >Edit</Button>
+
+                    <Button variant="danger" size="sm" onClick={() => {
+
+                         var requestOptions = {
+                            method: 'DELETE',
+                            redirect: 'follow',
+                        };
+
+                        fetch('http://localhost:1177/transcriptions/delete?email=' + cookies.get("email") + "&title="+this.state.title, requestOptions)
+                            .then((response) => response.json())
+                            .then(response => {
+                                alert("You will now be redirected to the transcription list");
+                                this.props.history.push({
+                                    pathname: "/transcriptions",
+                                    state: {
+                                        email: this.state.email,
+                                    }
+                                })
+                            }).catch(err => {
+                            alert(err.toString())
+                        });}}>
+                        Delete</Button>
+
+                </div>
+
+                <hr/>
+                <br/>
                 <div className="mediaAndSearch">
                     <video
                         id="video"
                         controls
                     />
+
                     <div className="search-bar">
                         <input type="text" placeholder="Search Transcription..." onChange={(e)=>this.searchList(e)}/>
                         <ul>
                             {this.getResults()}
                         </ul>
                     </div>
+
                 </div>
-                <hr/>
                 <div className="main-transcription">
-                    {this.getBody()}
+                    {this.state.body}
                 </div>
             </div>
         );
