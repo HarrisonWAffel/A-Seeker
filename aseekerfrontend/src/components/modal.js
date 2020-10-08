@@ -14,5 +14,6 @@ class MyModal extends Component{
             </Modal>
         );
     }
+
 }
 export default Modal;

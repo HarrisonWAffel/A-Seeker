@@ -5,6 +5,7 @@ import Cookies from 'universal-cookie'
 import './css/transcriptionView.css'
 import './css/transcriptionTextWindow.css'
 import {Button, ButtonGroup, ToggleButton} from "react-bootstrap";
+import Card from '@material-ui/core/Card';
 
 const cookies = new Cookies();
 
@@ -176,17 +177,23 @@ class TranscriptionView extends React.Component {
         if (found.length > 0) {
             for (i = 0; i < found.length; i++) {
                 if(found[i] !== undefined) {
-                    console.log(found[i].time);
-                    let curtime = found[i].time;
-                    elements[i] = (
-                        <li onClick={()=>{
-                            var video = document.getElementById("video");
-                            //manipulate the media player to the time
-                            video.currentTime = curtime; //take 750ms off so that we can actually hear the search result
-                        }}>
-                            <p>{found[i].word}</p>
-                            <p>({found[i].time})</p>
-                        </li>);
+                    if (found[i] !== "") {
+                        console.log(found[i].time);
+                        let curtime = found[i].time;
+                        elements[i] = (
+                            <div>
+                                <li className="listitem" onClick={() => {
+                                    var video = document.getElementById("video");
+                                    //manipulate the media player to the time
+                                    video.currentTime = curtime; //take 750ms off so that we can actually hear the search result
+                                }}>
+
+                                    <i><p>"{found[i].word}"</p></i>
+                                <br/>
+
+                                </li>
+                        </div>);
+                    }
                 }
             }
         }
@@ -203,52 +210,28 @@ class TranscriptionView extends React.Component {
         return (
             <div className="transcriptionView">
                 <div className="buttons">
-                    <h4 className="title"> {this.state.title} </h4>
-                    <br/>
+                    <h4 className="title"> File Name: {this.state.title} </h4>
+
                     <Button variant="primary" size="sm" onClick={() =>
                         this.enableEditing(this.state.title, this.state.tokens)}
                     >Edit</Button>
-
-                    <Button variant="danger" size="sm" onClick={() => {
-
-                         var requestOptions = {
-                            method: 'DELETE',
-                            redirect: 'follow',
-                        };
-
-                        fetch('http://localhost:1177/transcriptions/delete?email=' + cookies.get("email") + "&title="+this.state.title, requestOptions)
-                            .then((response) => response.json())
-                            .then(response => {
-                                alert("You will now be redirected to the transcription list");
-                                this.props.history.push({
-                                    pathname: "/transcriptions",
-                                    state: {
-                                        email: this.state.email,
-                                    }
-                                })
-                            }).catch(err => {
-                            alert(err.toString())
-                        });}}>
-                        Delete</Button>
-
                 </div>
-
                 <hr/>
                 <br/>
-                <div className="mediaAndSearch">
-                    <video
-                        id="video"
-                        controls
-                    />
-
-                    <div className="search-bar">
-                        <input type="text" placeholder="Search Transcription..." onChange={(e)=>this.searchList(e)}/>
-                        <ul>
-                            {this.getResults()}
-                        </ul>
+                <Card className="mediaAndSearch shadow-lg p- mb-5 bg-white rounded">
+                    <div className="video_holder">
+                        <video
+                            id="video"
+                            controls
+                        />
+                        <div className="search-bar">
+                            <input type="text" placeholder="Search Transcription..." onChange={(e)=>this.searchList(e)}/>
+                            <ul>
+                                {this.getResults()}
+                            </ul>
+                        </div>
                     </div>
-
-                </div>
+                </Card>
                 <div className="main-transcription">
                     {this.state.body}
                 </div>

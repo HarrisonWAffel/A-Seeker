@@ -4,6 +4,7 @@ import './css/bodyContent.css'
 import Cookies from 'universal-cookie'
 import {Button, ButtonGroup, ToggleButton} from "react-bootstrap";
 import TranscriptionView from "./transcriptionView";
+import Card from "@material-ui/core/Card";
 
 const cookies = new Cookies();
 
@@ -108,7 +109,6 @@ class TranscriptionEdit extends React.Component {
 
         fetch('http://localhost:1177/transcriptions/update?email='+cookies.get("email") + "&title="+title, requestOptions)
             .then(response => {
-                alert(response.status)
             });
 
         this.props.history.push({
@@ -137,12 +137,15 @@ class TranscriptionEdit extends React.Component {
                 <Button variant="primary" size="sm" onClick={(e) =>
                     this.enableViewing(this.state.title, this.state.tokens)}
                 >Save</Button>{' '}
-                <video
-                    id="video"
-                    controls
-                    title="My own video player"
-                />
-                <hr/>
+                <Card className="shadow-lg p- mb-5 bg-white rounded">
+                    <div className="video_holder">
+                        <video
+                            id="video"
+                            controls
+                        />
+
+                    </div>
+                </Card>
                 <textarea
                     value={this.state.words}
                     spellCheck={false}

@@ -8,9 +8,15 @@
     padding-top: 15px;
 }
 
+.transcriptionView .search-bar input {
+    width: 100%;
+    text-align: center;
+}
+
+
+
 .transcriptionView .search-bar ul {
     align-content: end;
-    position: fixed;
     height: 80%;
     margin-top: 2vh;
     list-style: none;
@@ -21,14 +27,35 @@
 
 .transcriptionView .mediaAndSearch {
     float: right;
+    right: 80%;
     width: fit-content;
-    background-color: black;
+    max-width: 40%;
+    padding-left: 10px;
+    padding-right: 10px;
+    margin-right: 10px;
+    background-color: #e8e7e8;
     height: 100%;
+
 }
 
+
+
+#video {
+
+}
+.editPlayer {
+    float: right;
+    position: sticky;
+
+}
+.video_holder{
+    position: -webkit-sticky;
+    position: sticky;
+}
 .transcriptionView .main-transcription {
     /*float: left;*/
-    min-width: 0;
+    /*min-width: 0;*/
+    /*max-width: 60%;*/
 }
 
 .transcriptionView p {
@@ -38,25 +65,28 @@
 }
 
 .transcriptionView textarea {
-    display: inline-block;
     width: 100%;
+    position: fixed;
+    max-width: 80vw;
 }
 
-.search-bar {
+.search-bar input {
     /*all: revert;*/
-    margin-left: 50%;
     /*margin-top: 25%;*/
+
 }
 
 .transcriptionView button {
     margin: 15px;
     display: inline-block;
+
 }
 .title {
     display: inline-block;
-    padding-left: 5%;
+    align-content: initial;
 }
 
 .buttons {
     margin-left: 40%;
+    position: sticky;
 }
